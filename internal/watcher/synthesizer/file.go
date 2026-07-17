@@ -204,6 +204,24 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 			}
 		}
 	}
+	// Per-account Codex banked-reset auto consume preference.
+	if rawAuto, ok := metadata["auto_use_banked_reset"]; ok {
+		switch v := rawAuto.(type) {
+		case bool:
+			if v {
+				a.Attributes["auto_use_banked_reset"] = "true"
+			} else {
+				a.Attributes["auto_use_banked_reset"] = "false"
+			}
+		case string:
+			trimmed := strings.ToLower(strings.TrimSpace(v))
+			if trimmed == "true" || trimmed == "1" || trimmed == "yes" || trimmed == "on" {
+				a.Attributes["auto_use_banked_reset"] = "true"
+			} else if trimmed == "false" || trimmed == "0" || trimmed == "no" || trimmed == "off" {
+				a.Attributes["auto_use_banked_reset"] = "false"
+			}
+		}
+	}
 	coreauth.ApplyCustomHeadersFromMetadata(a)
 	coreauth.SetOAuthModelAliasesAttribute(a, perAccountModelAliases)
 	ApplyAuthExcludedModelsMeta(a, cfg, perAccountExcluded, "oauth")

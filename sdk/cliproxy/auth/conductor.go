@@ -1881,6 +1881,14 @@ func (m *Manager) executeStreamWithModelPool(ctx context.Context, executor Provi
 				}
 			}
 		}
+		if errStream != nil && m.tryCodexBankedResetOnUsageLimit(ctx, auth, errStream) {
+			streamResult, errStream = executor.ExecuteStream(ctx, auth, execReq, execOpts)
+			if errStream != nil {
+				if errCtx := ctx.Err(); errCtx != nil {
+					return nil, errCtx
+				}
+			}
+		}
 		if errStream != nil {
 			rerr := resultErrorFromError(errStream)
 			result := Result{AuthID: auth.ID, Provider: provider, Model: resultModel, Success: false, Error: rerr}
@@ -1914,6 +1922,20 @@ func (m *Manager) executeStreamWithModelPool(ctx context.Context, executor Provi
 					streamResult = retryStream
 					buffered, closed, bootstrapErr = readStreamBootstrap(ctx, streamResult.Chunks)
 				}
+			}
+		}
+		if bootstrapErr != nil && m.tryCodexBankedResetOnUsageLimit(ctx, auth, bootstrapErr) {
+			discardStreamChunks(streamResult.Chunks)
+			retryStream, retryErr := executor.ExecuteStream(ctx, auth, execReq, execOpts)
+			if retryErr != nil {
+				if errCtx := ctx.Err(); errCtx != nil {
+					return nil, errCtx
+				}
+				bootstrapErr = retryErr
+				streamResult = &cliproxyexecutor.StreamResult{}
+			} else {
+				streamResult = retryStream
+				buffered, closed, bootstrapErr = readStreamBootstrap(ctx, streamResult.Chunks)
 			}
 		}
 		if bootstrapErr != nil {
@@ -2611,6 +2633,15 @@ func (m *Manager) executeMixedOnce(ctx context.Context, providers []string, req 
 						if errCtx := execCtx.Err(); errCtx != nil {
 							return cliproxyexecutor.Response{}, errCtx
 						}
+					}
+				}
+			}
+			// Codex banked reset: when both weekly bars are exhausted, consume one stacked credit and retry once.
+			if errExec != nil && m.tryCodexBankedResetOnUsageLimit(execCtx, auth, errExec) {
+				resp, errExec = executor.Execute(execCtx, auth, execReq, execOpts)
+				if errExec != nil {
+					if errCtx := execCtx.Err(); errCtx != nil {
+						return cliproxyexecutor.Response{}, errCtx
 					}
 				}
 			}

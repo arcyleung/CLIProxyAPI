@@ -861,6 +861,13 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.PUT("/quota-exceeded/switch-preview-model", s.mgmt.PutSwitchPreviewModel)
 		mgmt.PATCH("/quota-exceeded/switch-preview-model", s.mgmt.PutSwitchPreviewModel)
 		mgmt.POST("/reset-quota", s.mgmt.ResetQuota)
+		mgmt.GET("/codex-usage", s.mgmt.GetCodexUsage)
+		mgmt.PUT("/codex-auto-use-banked-reset", s.mgmt.PutCodexAutoUseBankedReset)
+		mgmt.PATCH("/codex-auto-use-banked-reset", s.mgmt.PutCodexAutoUseBankedReset)
+		// Backward-compatible aliases for earlier draft path names.
+		mgmt.PUT("/codex-auto-reset-credits", s.mgmt.PutCodexAutoUseBankedReset)
+		mgmt.PATCH("/codex-auto-reset-credits", s.mgmt.PutCodexAutoUseBankedReset)
+		mgmt.POST("/codex-banked-reset", s.mgmt.ConsumeCodexBankedReset)
 
 		mgmt.GET("/api-keys", s.mgmt.GetAPIKeys)
 		mgmt.PUT("/api-keys", s.mgmt.PutAPIKeys)

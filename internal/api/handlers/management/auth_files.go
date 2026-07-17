@@ -567,6 +567,9 @@ func (h *Handler) buildAuthFileEntry(auth *coreauth.Auth) gin.H {
 	if websockets, ok := authWebsocketsValue(auth); ok {
 		entry["websockets"] = websockets
 	}
+	if strings.EqualFold(strings.TrimSpace(auth.Provider), "codex") {
+		entry["auto_use_banked_reset"] = coreauth.AuthAutoUseBankedResetEnabled(auth)
+	}
 	return entry
 }
 
@@ -1664,6 +1667,9 @@ func syncAuthFileMetadataFields(auth *coreauth.Auth, touchedRoots map[string]str
 	if _, ok := touchedRoots["disabled"]; ok {
 		syncAuthFileDisabledState(auth)
 	}
+	if _, ok := touchedRoots["auto_use_banked_reset"]; ok {
+		syncAuthFileAutoResetCreditsAttribute(auth)
+	}
 }
 
 func syncAuthFileHeaderAttributes(auth *coreauth.Auth) {
@@ -1720,6 +1726,33 @@ func authFileIntValue(value any) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+
+func syncAuthFileAutoResetCreditsAttribute(auth *coreauth.Auth) {
+	if auth == nil {
+		return
+	}
+	if auth.Attributes == nil {
+		auth.Attributes = make(map[string]string)
+	}
+	enabled := coreauth.AuthAutoUseBankedResetEnabled(auth)
+	if enabled {
+		auth.Attributes["auto_use_banked_reset"] = "true"
+		if auth.Metadata != nil {
+			auth.Metadata["auto_use_banked_reset"] = true
+		}
+		return
+	}
+	// Persist explicit false when field was patched, so opt-out survives reloads.
+	if auth.Metadata != nil {
+		if _, ok := auth.Metadata["auto_use_banked_reset"]; ok {
+			auth.Metadata["auto_use_banked_reset"] = false
+			auth.Attributes["auto_use_banked_reset"] = "false"
+			return
+		}
+	}
+	delete(auth.Attributes, "auto_use_banked_reset")
 }
 
 func syncAuthFileNoteAttribute(auth *coreauth.Auth) {
